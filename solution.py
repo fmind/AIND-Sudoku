@@ -12,6 +12,7 @@ partition = lambda n, coll: [coll[i:i + n] for i in range(0, len(coll), n)]
 cross = lambda a, b: [s + t for s in a for t in b]
 
 
+# simply add diagonal units to extend constraint propagation to diagonals in the grid
 DUNITS = [[r + c for i, r in enumerate(ROWS, 1) for j, c in enumerate(COLS, 1) if i + j == 10],
           [r + c for i, r in enumerate(ROWS, 1) for j, c in enumerate(COLS, 1) if i == j]]
 SUNITS = [cross(rs, cs) for rs in partition(3, ROWS) for cs in partition(3, COLS)]
@@ -47,22 +48,33 @@ def naked_twins(values):
     Returns:
         the values dictionary with the naked twins eliminated from peers.
     """
+    # apply the naked twins constraint on each unit of the grid
+    # use frozenset to ensure the search is order insensitive
+    # e.g. '12' and '21' are considered twins in this version
     for unit in UNITLIST:
+        # find pairs in the unit: box where the current solution has two digits
         pairs = {box: frozenset(values[box]) for box in unit if len(values[box]) == 2}
+        # find twins in pairs: pairs that appear exactly two times in the dict
         twins = [pair for pair, n in Counter(pairs.values()).items() if n == 2]
 
+        # no twins found: go to next unit
         if len(twins) == 0:
             continue
 
+        # remove digits from every box in the unit ...
         for box in unit:
             digits = values[box]
 
+            # ... except when the solution has one digit
             if len(digits) == 1:
                 continue
 
+            # ... except when the solution is a twin
             if frozenset(values[box]) in twins:
                 continue
 
+            # use reduce to remove digits that appear in the (union) of twins
+            # another possibility would be to compose a regexp and use string substitution
             digits = reduce(lambda s, d: s.replace(d, ''), frozenset.union(*twins), digits)
             assign_value(values, box, digits)
 
